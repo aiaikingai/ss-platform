@@ -1,0 +1,8 @@
+from __future__ import annotations
+
+def main() -> int:
+    print("Gateway OK: main entrypoint runs.")
+    return 0
+
+if __name__ == "__main__":
+    raise SystemExit(main())

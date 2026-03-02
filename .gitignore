@@ -1,0 +1,20 @@
+# Secrets
+.env
+.env.*
+config/*.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Local runtime data
+data/
+output/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+

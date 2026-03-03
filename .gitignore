@@ -1,20 +1,32 @@
+# =========================
 # Secrets
+# =========================
 .env
 .env.*
 config/*.env
 
+# =========================
 # Python
+# =========================
 __pycache__/
 *.pyc
 .venv/
 venv/
 
-# Local runtime data
+# =========================
+# Local runtime data (DO NOT PUSH)
+# =========================
 data/
+logs/
 output/
 *.log
 
+# SQLite DB files (extra safety)
+*.sqlite
+*.db
+
+# =========================
 # OS
+# =========================
 .DS_Store
 Thumbs.db
-

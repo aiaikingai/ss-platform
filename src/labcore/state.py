@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Iterable, Tuple
 
 
 class StateStore:
@@ -51,4 +51,17 @@ class StateStore:
                 ON CONFLICT(unique_key) DO UPDATE SET last_hash=excluded.last_hash
                 """,
                 (unique_key, record_hash),
+            )
+    def set_last_hash_many(self, updates: Iterable[Tuple[str, str]]) -> None:
+        updates = list(updates)
+        if not updates:
+            return
+        with self._connect() as con:
+            con.executemany(
+                """
+                INSERT INTO record_state (unique_key, last_hash)
+                VALUES (?, ?)
+                ON CONFLICT(unique_key) DO UPDATE SET last_hash=excluded.last_hash
+                """,
+                updates,
             )

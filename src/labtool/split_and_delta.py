@@ -65,6 +65,7 @@ def split_and_build_delta(
         _write_snapshot(snapshot_path, stream_rows, source_id, stream_id, now)
 
         delta_rows: List[dict] = []
+        pending_updates = []
         for row in stream_rows:
             unique_key = build_unique_key(row, source_id=source_id)
             rec_hash = build_record_hash(row, include_fields=MDR_SOURCE_COLUMNS)
@@ -88,12 +89,12 @@ def split_and_build_delta(
             out_row["change_type"] = change_type
             delta_rows.append(out_row)
 
-            state.set_last_hash(unique_key, rec_hash)
+            pending_updates.append((unique_key, rec_hash))
 
         if delta_rows:
             delta_path = delta_day_dir / f"{stream_id}__delta.csv"
             _write_delta(delta_path, delta_rows)
-
+            state.set_last_hash_many(pending_updates)
     return {
         "streams": sorted(grouped.keys()),
         "total_rows": len(rows),

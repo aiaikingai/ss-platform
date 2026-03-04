@@ -8,7 +8,6 @@ from typing import Dict, List
 
 from labcore.hashers import build_record_hash
 from labcore.keys import build_unique_key
-from labcore.schema import MDR_SOURCE_COLUMNS
 from labcore.state import StateStore
 from labcore.methods import derive_method_code
 
@@ -42,6 +41,7 @@ def split_and_build_delta(
 
     with input_csv.open("r", encoding="utf-8-sig", newline="") as f:
         reader = csv.DictReader(f)
+        source_fields = list(reader.fieldnames or [])
         rows = list(reader)
 
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -76,9 +76,7 @@ def split_and_build_delta(
         for row in stream_rows:
             unique_key = build_unique_key(row, source_id=source_id)
 
-            # NOTE: MDR_SOURCE_COLUMNS is MDR-only for now.
-            # We'll upgrade this later to support Mooney schemas.
-            rec_hash = build_record_hash(row, include_fields=MDR_SOURCE_COLUMNS)
+            rec_hash = build_record_hash(row, include_fields=source_fields)
 
             last_hash = state.get_last_hash(unique_key)
             if last_hash is None:

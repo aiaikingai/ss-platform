@@ -144,6 +144,14 @@ Idempotent reruns required.
 
 Architecture changes must be recorded in DECISIONS.md.
 
+Delta files are append-friendly: one file per day + stream, appended each run.
+
+Labtool never calls Feishu (publisher-agnostic).
+
+Labgateway dedupe model: cursor per file (tracks last published row index/offset).
+
+Bootstrap rule: first go-live can be done by clearing state → all rows become NEW → publish as baseline.
+
 9️⃣ Separation of Concerns
 
 Labtool:

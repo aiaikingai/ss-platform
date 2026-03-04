@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+import os
 import csv
 from collections import defaultdict
 from datetime import datetime
@@ -10,7 +10,7 @@ from labcore.hashers import build_record_hash
 from labcore.keys import build_unique_key
 from labcore.schema import MDR_SOURCE_COLUMNS
 from labcore.state import StateStore
-
+from labcore.methods import derive_method_code
 
 def read_source_id(path: Path) -> str:
     value = path.read_text(encoding="utf-8").strip()
@@ -25,8 +25,8 @@ def split_and_build_delta(
     out_root: Path,
 ) -> dict:
     """
-    Reads one CSV, splits by stream_id (= source_id__MethodName),
-    writes snapshots and per-stream delta files (NEW/CORRECTION).
+    Reads one CSV, splits by stream_id (= source_id__method_code),
+    writes snapshots and per-stream delta files (append-only daily).
     """
     source_id = read_source_id(source_id_file)
 
@@ -36,6 +36,7 @@ def split_and_build_delta(
 
     snapshots_dir.mkdir(parents=True, exist_ok=True)
     delta_dir.mkdir(parents=True, exist_ok=True)
+    state_db.parent.mkdir(parents=True, exist_ok=True)
 
     state = StateStore(state_db)
 
@@ -48,12 +49,17 @@ def split_and_build_delta(
     delta_day_dir = delta_dir / day
     delta_day_dir.mkdir(parents=True, exist_ok=True)
 
+    # Group rows by safe stream_id = source_id__method_code
     grouped: Dict[str, List[dict]] = defaultdict(list)
     for row in rows:
-        method = (row.get("MethodName") or "").strip()
-        if not method:
+        method_name = (row.get("MethodName") or "").strip()
+        if not method_name:
             continue
-        stream_id = f"{source_id}__{method}"
+
+        method_code = derive_method_code(method_name)
+        row["method_code"] = method_code
+
+        stream_id = f"{source_id}__{method_code}"
         grouped[stream_id].append(row)
 
     new_count = 0
@@ -65,9 +71,13 @@ def split_and_build_delta(
         _write_snapshot(snapshot_path, stream_rows, source_id, stream_id, now)
 
         delta_rows: List[dict] = []
-        pending_updates = []
+        pending_updates: List[tuple[str, str]] = []
+
         for row in stream_rows:
             unique_key = build_unique_key(row, source_id=source_id)
+
+            # NOTE: MDR_SOURCE_COLUMNS is MDR-only for now.
+            # We'll upgrade this later to support Mooney schemas.
             rec_hash = build_record_hash(row, include_fields=MDR_SOURCE_COLUMNS)
 
             last_hash = state.get_last_hash(unique_key)
@@ -93,8 +103,9 @@ def split_and_build_delta(
 
         if delta_rows:
             delta_path = delta_day_dir / f"{stream_id}__delta.csv"
-            _write_delta(delta_path, delta_rows)
-            state.set_last_hash_many(pending_updates)
+            _write_delta(delta_path, delta_rows)          # ✅ write first
+            state.set_last_hash_many(pending_updates)     # ✅ then update state
+
     return {
         "streams": sorted(grouped.keys()),
         "total_rows": len(rows),
@@ -113,19 +124,38 @@ def _write_snapshot(path: Path, rows: List[dict], source_id: str, stream_id: str
             fieldnames.append(meta)
 
     with path.open("w", encoding="utf-8", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=fieldnames)
-        w.writeheader()
-        for r in rows:
-            out = dict(r)
-            out["source_id"] = source_id
-            out["stream_id"] = stream_id
-            out["ingest_time"] = now
-            w.writerow(out)
+        writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
+        writer.writeheader()
+        for row in rows:
+            out_row = dict(row)
+            out_row["source_id"] = source_id
+            out_row["stream_id"] = stream_id
+            out_row["ingest_time"] = now
+            writer.writerow(out_row)
 
 
 def _write_delta(path: Path, rows: List[dict]) -> None:
+    """
+    Append-only delta writer (🔒 Decision 007).
+    - One delta file per day + stream.
+    - Append rows each run.
+    - Write header only if file is new/empty.
+    - fsync to reduce risk before sqlite state commit.
+    """
+    if not rows:
+        return
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+
     fieldnames = list(rows[0].keys())
-    with path.open("w", encoding="utf-8", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=fieldnames)
-        w.writeheader()
+
+    write_header = not (path.exists() and path.stat().st_size > 0)
+
+    with path.open("a", encoding="utf-8", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
+        if write_header:
+            w.writeheader()
         w.writerows(rows)
+
+        f.flush()
+        os.fsync(f.fileno())

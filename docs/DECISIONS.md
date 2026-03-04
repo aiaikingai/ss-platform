@@ -98,5 +98,7 @@ Prevent cross-machine collisions.
 
 Keep system modular and scalable.
 
-END OF DECISIONS LOG
+Deployment architecture: TBD (central gateway vs distributed publishers).
+
+Labtool/Labgateway design must remain compatible with both.
 

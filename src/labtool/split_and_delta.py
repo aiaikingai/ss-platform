@@ -11,12 +11,40 @@ from labcore.keys import build_unique_key
 from labcore.state import StateStore
 from labcore.methods import derive_method_code
 
+META_FIELDS = [
+    "method_code",
+    "source_id",
+    "stream_id",
+    "ingest_time",
+    "unique_key",
+    "record_hash",
+    "change_type",
+]
+
+
 def read_source_id(path: Path) -> str:
     # strip UTF-8 BOM if present, and whitespace
     value = path.read_text(encoding="utf-8").lstrip("\ufeff").strip()
     if not value:
         raise ValueError(f"source_id is empty: {path}")
     return value
+
+
+def _read_rows_with_fallback(input_csv: Path) -> list[dict]:
+    """
+    Read CSV/TSV exported by lab systems.
+    Try UTF-8-SIG first, then fallback to CP936 (GBK).
+    """
+    last_err: Exception | None = None
+    for enc in ("utf-8-sig", "cp936"):
+        try:
+            with input_csv.open("r", encoding=enc, newline="") as f:
+                # delimiter will be handled later; for now keep comma-based reader
+                reader = csv.DictReader(f)
+                return list(reader)
+        except Exception as e:
+            last_err = e
+    raise last_err  # type: ignore
 
 
 def split_and_build_delta(
@@ -40,10 +68,8 @@ def split_and_build_delta(
 
     state = StateStore(state_db)
 
-    with input_csv.open("r", encoding="utf-8-sig", newline="") as f:
-        reader = csv.DictReader(f)
-        source_fields = list(reader.fieldnames or [])
-        rows = list(reader)
+    rows = _read_rows_with_fallback(input_csv)
+    source_fields = [k for k in (rows[0].keys() if rows else [])]
 
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     day = datetime.now().strftime("%Y-%m-%d")
@@ -146,7 +172,9 @@ def _write_delta(path: Path, rows: List[dict]) -> None:
 
     path.parent.mkdir(parents=True, exist_ok=True)
 
-    fieldnames = list(rows[0].keys())
+    # stable field order: input columns first, then meta
+    input_fields = [k for k in rows[0].keys() if k not in META_FIELDS]
+    fieldnames = input_fields + [f for f in META_FIELDS if f not in input_fields]
 
     write_header = not (path.exists() and path.stat().st_size > 0)
 

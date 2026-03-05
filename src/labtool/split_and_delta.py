@@ -12,7 +12,8 @@ from labcore.state import StateStore
 from labcore.methods import derive_method_code
 
 def read_source_id(path: Path) -> str:
-    value = path.read_text(encoding="utf-8").strip()
+    # strip UTF-8 BOM if present, and whitespace
+    value = path.read_text(encoding="utf-8").lstrip("\ufeff").strip()
     if not value:
         raise ValueError(f"source_id is empty: {path}")
     return value

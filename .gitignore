@@ -10,15 +10,20 @@ config/*.env
 # =========================
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
 .venv/
 venv/
+.pytest_cache/
 
 # =========================
 # Local runtime data (DO NOT PUSH)
 # =========================
 data/
+runtime/
 logs/
 output/
+temp/
 *.log
 
 # SQLite DB files (extra safety)
@@ -30,3 +35,10 @@ output/
 # =========================
 .DS_Store
 Thumbs.db
+__MACOSX/
+
+# =========================
+# IDE
+# =========================
+.vscode/
+.idea/

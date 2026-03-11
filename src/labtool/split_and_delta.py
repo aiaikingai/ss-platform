@@ -49,20 +49,23 @@ def read_source_id(path: Path) -> str:
 
 
 def _read_rows_with_fallback(input_csv: Path) -> list[dict]:
-    """
-    Read CSV/TSV exported by lab systems.
-    Try UTF-8-SIG first, then fallback to CP936 (GBK).
-    """
     last_err: Exception | None = None
     for enc in ("utf-8-sig", "cp936"):
         try:
             with input_csv.open("r", encoding=enc, newline="") as f:
-                # delimiter will be handled later; for now keep comma-based reader
-                reader = csv.DictReader(f)
-                return list(reader)
+                # Auto-detect TAB vs COMMA delimiter
+                sample = f.read(2048)
+                f.seek(0)
+                delimiter = "\t" if sample.count("\t") > sample.count(",") else ","
+                reader = csv.DictReader(f, delimiter=delimiter)
+                rows = list(reader)
+                # Sanity check - if only 1 column, delimiter wrong
+                if rows and len(rows[0]) == 1:
+                    raise ValueError("Only 1 column detected - wrong delimiter")
+                return rows
         except Exception as e:
             last_err = e
-    raise last_err  # type: ignore
+    raise last_err
 
 
 def split_and_build_delta(
@@ -166,7 +169,7 @@ def _write_snapshot(path: Path, rows: List[dict], source_id: str, stream_id: str
         if meta not in fieldnames:
             fieldnames.append(meta)
 
-    with path.open("w", encoding="utf-8", newline="") as f:
+    with path.open("w", encoding="utf-8-sig", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
         writer.writeheader()
         for row in rows:
@@ -196,7 +199,7 @@ def _write_delta(path: Path, rows: List[dict]) -> None:
 
     write_header = not (path.exists() and path.stat().st_size > 0)
 
-    with path.open("a", encoding="utf-8", newline="") as f:
+    with path.open("a", encoding="utf-8-sig", newline="") as f:
         w = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
         if write_header:
             w.writeheader()

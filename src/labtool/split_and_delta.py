@@ -23,11 +23,29 @@ META_FIELDS = [
 
 
 def read_source_id(path: Path) -> str:
-    # strip UTF-8 BOM if present, and whitespace
-    value = path.read_text(encoding="utf-8").lstrip("\ufeff").strip()
-    if not value:
-        raise ValueError(f"source_id is empty: {path}")
-    return value
+    """
+    Read source_id.txt robustly across Windows/macOS.
+
+    Tries common encodings in order:
+    - utf-8
+    - utf-8-sig
+    - utf-16
+
+    Why:
+    Windows PowerShell sometimes writes text files as UTF-16,
+    while macOS/Linux usually use UTF-8.
+    """
+    last_error = None
+
+    for enc in ("utf-8", "utf-8-sig", "utf-16"):
+        try:
+            value = path.read_text(encoding=enc).lstrip("\ufeff").strip()
+            if value:
+                return value
+        except Exception as e:
+            last_error = e
+
+    raise ValueError(f"Could not read source_id from {path}. Last error: {last_error}")
 
 
 def _read_rows_with_fallback(input_csv: Path) -> list[dict]:

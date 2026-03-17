@@ -9,6 +9,8 @@ def main() -> int:
     repo_root = Path(__file__).resolve().parents[2]
     src_dir = repo_root / "src"
 
+    print(f"Runner Python: {sys.executable}")
+
     # Windows machine paths
     machine_output_dir = Path(r"C:\SSLab\MDR_PC_01")
     input_csv = machine_output_dir / "ALL_Values.csv"
@@ -31,6 +33,7 @@ def main() -> int:
         r"C:\SSLab\temp_mdb_copy",
     ]
 
+    print(f"Runner Python: {sys.executable}")
     print("=== STEP 1: EXTRACT MDB -> ALL_Values.csv ===")
     print("Running:", " ".join(extractor_cmd))
     result = subprocess.run(extractor_cmd, cwd=repo_root)

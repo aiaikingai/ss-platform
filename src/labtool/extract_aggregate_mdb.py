@@ -484,7 +484,7 @@ def main():
         log_lines.append(f"[FATAL] {e}")
         log_lines.append(traceback.format_exc())
 
-    with open(log_path, "w", encoding="utf-8") as f:
+    with open(log_path, "w", encoding="utf-8-sig") as f:
         f.write("\n".join(log_lines))
 
     print("\n".join(log_lines))

@@ -6,14 +6,14 @@ from labcore.schema import MDR_SOURCE_COLUMNS
 def test_unique_key_stable_when_results_change():
     source_id = "MDR_PC_01"
     row1 = {
-        "MethodName": "195℃测试15分钟",
-        "SampleName": "H39Q1",
-        "Batch": "14",
-        "TestDate": "2025-10-15 00:00:00",
-        "TestTime": "14:52:55",
-        "ML": "5.596",
-        "MH": "16.477",
-    }
+    "MethodName": "195℃测试15分钟",
+    "ID": "999",
+    "SampleName": "H39Q1",
+    "Batch": "14",
+    "TestDate": "2025-10-15 00:00:00",
+    "TestTime": "14:52:55",
+    "ML": "5.596",
+    "MH": "16.477",}
     row2 = {**row1, "ML": "5.700", "MH": "16.900"}  # corrected results
 
     assert build_unique_key(row1, source_id) == build_unique_key(row2, source_id)

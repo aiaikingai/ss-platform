@@ -21,6 +21,8 @@ def _normalize_test_datetime(test_date: str, test_time: str) -> str:
       2026/1/1 0:00
       2026-01-01 00:00:00
       2026/01/01
+      08/24/23 00:00:00
+      08/24/2023 00:00:00
       1:42:12
       01:42
     """
@@ -32,21 +34,29 @@ def _normalize_test_datetime(test_date: str, test_time: str) -> str:
     if not raw_time:
         raise ValueError("Missing TestTime")
 
-    # Keep only the date part if datetime-like text was provided
-    date_part = raw_date.split()[0].replace("/", "-")
+    date_candidates = [
+        "%Y/%m/%d %H:%M:%S",
+        "%Y/%m/%d %H:%M",
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%d %H:%M",
+        "%Y/%m/%d",
+        "%Y-%m-%d",
+        "%m/%d/%y %H:%M:%S",
+        "%m/%d/%Y %H:%M:%S",
+        "%m/%d/%y",
+        "%m/%d/%Y",
+    ]
 
     parsed_date = None
-
-    # First try strict padded format
-    for fmt in ("%Y-%m-%d",):
+    for fmt in date_candidates:
         try:
-            parsed_date = datetime.strptime(date_part, fmt).date()
+            parsed_date = datetime.strptime(raw_date, fmt).date()
             break
         except ValueError:
             pass
 
-    # Fallback for non-zero-padded dates like 2026-1-1
     if parsed_date is None:
+        date_part = raw_date.split()[0].replace("/", "-")
         parts = date_part.split("-")
         if len(parts) != 3:
             raise ValueError(f"Unrecognized TestDate format: {raw_date}")

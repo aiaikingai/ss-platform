@@ -11,6 +11,8 @@ from labcore.keys import build_unique_key
 from labcore.state import StateStore
 from labcore.methods import derive_method_code
 
+
+
 META_FIELDS = [
     "method_code",
     "source_id",
@@ -21,6 +23,32 @@ META_FIELDS = [
     "change_type",
 ]
 
+HASH_FIELDS = [
+    "ID",
+    "MethodName",
+    "SampleName",
+    "Batch",
+    "ML",
+    "MH",
+    "ts1",
+    "ts2",
+    "TC10",
+    "TC50",
+    "TC90",
+    "TestResult",
+    "SampleNo",
+    "Operator",
+    "LimitData",
+    "TestTimes",
+    "MechineNo",
+    "Shift",
+    "Item",
+    "CarNO",
+    "ManufactureDate",
+    "TestDate",
+    "TestTime",
+    "S1_t15",
+]
 
 def read_source_id(path: Path) -> str:
     """
@@ -90,7 +118,9 @@ def split_and_build_delta(
     state = StateStore(state_db)
 
     rows = _read_rows_with_fallback(input_csv)
-    source_fields = [k for k in (rows[0].keys() if rows else [])]
+    missing_hash_fields = [f for f in HASH_FIELDS if f not in (rows[0].keys() if rows else [])]
+    if missing_hash_fields:
+        print(f"WARNING: missing HASH_FIELDS in current input: {missing_hash_fields}")
 
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     day = datetime.now().strftime("%Y-%m-%d")
@@ -124,7 +154,7 @@ def split_and_build_delta(
         for row in stream_rows:
             unique_key = build_unique_key(row, source_id=source_id)
 
-            rec_hash = build_record_hash(row, include_fields=source_fields)
+            rec_hash = build_record_hash(row, include_fields=HASH_FIELDS)
 
             last_hash = state.get_last_hash(unique_key)
             if last_hash is None:

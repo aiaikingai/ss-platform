@@ -102,3 +102,30 @@ Deployment architecture: TBD (central gateway vs distributed publishers).
 
 Labtool/Labgateway design must remain compatible with both.
 
+2026-06-11
+Decision 006 — Unique Key Extended to 4 Parts
+unique_key = source_id : method_code : ID : normalized_test_datetime
+Supersedes the 3-part form in Decision 001. Reason: IDs may be reused if
+machine/archive behavior changes; normalized test datetime adds a stable
+event-identity component. Already implemented in keys.py; this entry
+retro-documents it. Lesson: locked designs must get a log entry BEFORE the
+code changes, not after.
+
+Decision 007 — Append-Only Daily Delta Files
+(Recovered: code referenced Decision 007 but it was never logged.)
+One delta file per stream per day. Append rows each run; header written
+only when file is new. fsync before SQLite state commit.
+
+Decision 008 — Record Hash v2: Denylist + Drop-Empty
+Hash includes all input columns EXCEPT extractor metadata (columns starting
+with "__") and pipeline META_FIELDS. Empty values are omitted from the hash
+payload. Reasons: (1) fixes silently missed Mooney/Scorch corrections caused
+by an MDR-only allowlist; (2) makes hashes stable when new machine types add
+columns to the union CSV; (3) zero per-machine maintenance, consistent with
+Decision 002. Accepted consequence: one-time CORRECTION wave on first run
+after deployment (no downstream consumer exists yet, so no migration script).
+
+Decision 009 — Delta Files Are At-Least-Once
+A crash between delta write and state commit can duplicate rows in a daily
+delta file. By design: duplicates beat data loss. Contract: any downstream
+consumer (labgateway) MUST deduplicate by (unique_key, record_hash).

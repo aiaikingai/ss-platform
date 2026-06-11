@@ -8,6 +8,7 @@ from typing import Dict, List
 
 from labcore.hashers import build_record_hash
 from labcore.keys import build_unique_key
+from labcore.schema import hash_include_fields
 from labcore.state import StateStore
 from labcore.methods import derive_method_code
 
@@ -23,32 +24,6 @@ META_FIELDS = [
     "change_type",
 ]
 
-HASH_FIELDS = [
-    "ID",
-    "MethodName",
-    "SampleName",
-    "Batch",
-    "ML",
-    "MH",
-    "ts1",
-    "ts2",
-    "TC10",
-    "TC50",
-    "TC90",
-    "TestResult",
-    "SampleNo",
-    "Operator",
-    "LimitData",
-    "TestTimes",
-    "MechineNo",
-    "Shift",
-    "Item",
-    "CarNO",
-    "ManufactureDate",
-    "TestDate",
-    "TestTime",
-    "S1_t15",
-]
 
 def read_source_id(path: Path) -> str:
     """
@@ -118,12 +93,11 @@ def split_and_build_delta(
     state = StateStore(state_db)
 
     rows = _read_rows_with_fallback(input_csv)
-    missing_hash_fields = [f for f in HASH_FIELDS if f not in (rows[0].keys() if rows else [])]
-    if missing_hash_fields:
-        print(f"WARNING: missing HASH_FIELDS in current input: {missing_hash_fields}")
+    include_fields = hash_include_fields(rows[0].keys() if rows else [], META_FIELDS)
 
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    day = datetime.now().strftime("%Y-%m-%d")
+    _now = datetime.now()
+    now = _now.strftime("%Y-%m-%d %H:%M:%S")
+    day = _now.strftime("%Y-%m-%d")
     delta_day_dir = delta_dir / day
     delta_day_dir.mkdir(parents=True, exist_ok=True)
 
@@ -154,7 +128,7 @@ def split_and_build_delta(
         for row in stream_rows:
             unique_key = build_unique_key(row, source_id=source_id)
 
-            rec_hash = build_record_hash(row, include_fields=HASH_FIELDS)
+            rec_hash = build_record_hash(row, include_fields=include_fields)
 
             last_hash = state.get_last_hash(unique_key)
             if last_hash is None:
@@ -199,7 +173,8 @@ def _write_snapshot(path: Path, rows: List[dict], source_id: str, stream_id: str
         if meta not in fieldnames:
             fieldnames.append(meta)
 
-    with path.open("w", encoding="utf-8-sig", newline="") as f:
+    tmp = path.with_suffix(".tmp")
+    with tmp.open("w", encoding="utf-8-sig", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
         writer.writeheader()
         for row in rows:
@@ -208,6 +183,9 @@ def _write_snapshot(path: Path, rows: List[dict], source_id: str, stream_id: str
             out_row["stream_id"] = stream_id
             out_row["ingest_time"] = now
             writer.writerow(out_row)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp, path)
 
 
 def _write_delta(path: Path, rows: List[dict]) -> None:

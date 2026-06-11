@@ -12,7 +12,9 @@ def sha256_text(text: str) -> str:
 def build_record_hash(row: Mapping[str, str], include_fields: Iterable[str]) -> str:
     payload: dict[str, str] = {}
     for f in include_fields:
-        payload[f] = (row.get(f) or "").strip()
+        v = (row.get(f) or "").strip()
+        if v:
+            payload[f] = v
 
     canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return sha256_text(canonical)

@@ -1,6 +1,8 @@
 # src/labcore/schema.py
 from __future__ import annotations
 
+import hashlib
+from pathlib import Path
 from typing import Iterable
 
 # Your normalized MDR CSV columns (source columns).
@@ -57,3 +59,29 @@ def hash_include_fields(columns: Iterable[str], meta_fields: list[str]) -> list[
     """
     meta_set = set(meta_fields)
     return [c for c in columns if not c.startswith("__") and c not in meta_set]
+
+
+def check_schema_fingerprint(columns: Iterable[str], fingerprint_path: Path) -> None:
+    """
+    Warn when the CSV column layout changes between runs.
+
+    Computes a fingerprint of the sorted column list and compares it to the
+    last-seen fingerprint stored at fingerprint_path. If they differ, prints a
+    warning — a column was added or removed, which will change record hashes
+    for any row that populates the new column, producing a CORRECTION wave.
+    Always writes the current fingerprint so the warning fires only once per
+    schema change.
+    """
+    current = hashlib.sha256(
+        ",".join(sorted(columns)).encode("utf-8")
+    ).hexdigest()[:16]
+
+    if fingerprint_path.exists():
+        previous = fingerprint_path.read_text(encoding="utf-8").strip()
+        if previous != current:
+            print(
+                f"WARNING: CSV column layout changed (was {previous}, now {current}). "
+                "Any rows that populate the new/removed column will produce CORRECTION entries."
+            )
+
+    fingerprint_path.write_text(current + "\n", encoding="utf-8")

@@ -4,6 +4,7 @@
 .env
 .env.*
 config/*.env
+config/source_id.txt
 
 # =========================
 # Python

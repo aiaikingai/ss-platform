@@ -1,0 +1,70 @@
+# =====================================================================
+# ss-lab-platform — Phase 1 runtime
+# Two services. No web framework, no frontend code.
+#   db        : PostgreSQL 16 + TimescaleDB (extension available, not required)
+#   metabase  : dashboards, connects straight to db
+#
+# Start:  docker compose up -d
+# Stop:   docker compose down          (data survives — it is in a volume)
+# Wipe:   docker compose down -v       (DESTROYS all data)
+# =====================================================================
+
+services:
+
+  db:
+    # timescaledb-ha image ships PostgreSQL 16 WITH the TimescaleDB
+    # extension already compiled in. You are not obliged to enable it —
+    # §7 of the schema stays commented out until you actually need it.
+    # Using this image now means enabling it later is one SQL statement
+    # instead of a database migration.
+    image: timescale/timescaledb-ha:pg16
+    container_name: sslab-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: sslab
+      POSTGRES_USER: sslab
+      # CHANGE THIS. Then put the same value in your .env file.
+      POSTGRES_PASSWORD: change_me_before_first_run
+      # Chinese Windows clients need this collation to sort 中文 correctly
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
+    ports:
+      # 5432 exposed on the LAN so your Mac and the Windows PCs can reach it.
+      # Bind to a specific interface in production rather than 0.0.0.0.
+      - "5432:5432"
+    volumes:
+      - pgdata:/home/postgres/pgdata/data
+      # Anything in this folder runs ONCE, on first startup only.
+      # After the volume exists it is ignored — use Alembic for changes.
+      - ./db/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sslab -d sslab"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  metabase:
+    image: metabase/metabase:latest
+    container_name: sslab-metabase
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      # Metabase stores its OWN config (dashboards, users) in Postgres too,
+      # in a separate database. Never let it use the default H2 file store —
+      # H2 corrupts and you lose every dashboard you ever built.
+      MB_DB_TYPE: postgres
+      MB_DB_DBNAME: metabase
+      MB_DB_PORT: 5432
+      MB_DB_USER: sslab
+      MB_DB_PASS: change_me_before_first_run
+      MB_DB_HOST: db
+      JAVA_TIMEZONE: Asia/Shanghai
+    volumes:
+      - metabase_data:/metabase-data
+
+volumes:
+  pgdata:
+  metabase_data:

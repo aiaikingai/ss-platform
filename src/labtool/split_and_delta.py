@@ -8,7 +8,7 @@ from typing import Dict, List
 
 from labcore.hashers import build_record_hash
 from labcore.keys import build_unique_key
-from labcore.schema import hash_include_fields
+from labcore.schema import check_schema_fingerprint, hash_include_fields
 from labcore.state import StateStore
 from labcore.methods import derive_method_code
 
@@ -93,7 +93,9 @@ def split_and_build_delta(
     state = StateStore(state_db)
 
     rows = _read_rows_with_fallback(input_csv)
-    include_fields = hash_include_fields(rows[0].keys() if rows else [], META_FIELDS)
+    input_columns = list(rows[0].keys()) if rows else []
+    include_fields = hash_include_fields(input_columns, META_FIELDS)
+    check_schema_fingerprint(input_columns, state_db.parent / "schema.fingerprint")
 
     _now = datetime.now()
     now = _now.strftime("%Y-%m-%d %H:%M:%S")

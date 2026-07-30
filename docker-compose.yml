@@ -1,40 +1,42 @@
 # =====================================================================
-# ss-lab-platform — Phase 1 runtime
-# Two services. No web framework, no frontend code.
-#   db        : PostgreSQL 16 + TimescaleDB (extension available, not required)
-#   metabase  : dashboards, connects straight to db
+# ss-platform — Phase 1 runtime
+#
+# NO SECRETS IN THIS FILE. It is tracked by git.
+# The password lives in .env, which is gitignored.
+#
+# Docker Compose automatically reads .env from this same folder.
+# The ${VAR:?message} syntax means: fail loudly with that message if the
+# variable is missing — better than silently starting with a blank
+# password and leaving you to debug it later.
 #
 # Start:  docker compose up -d
-# Stop:   docker compose down          (data survives — it is in a volume)
+# Stop:   docker compose down          (data survives — it's in a volume)
 # Wipe:   docker compose down -v       (DESTROYS all data)
 # =====================================================================
 
 services:
 
   db:
-    # timescaledb-ha image ships PostgreSQL 16 WITH the TimescaleDB
-    # extension already compiled in. You are not obliged to enable it —
-    # §7 of the schema stays commented out until you actually need it.
-    # Using this image now means enabling it later is one SQL statement
-    # instead of a database migration.
+    # timescaledb-ha ships PostgreSQL 16 with the TimescaleDB extension
+    # already compiled in. You don't have to enable it — §7 of the schema
+    # stays commented out until needed. Using this image now means
+    # enabling it later is one SQL statement, not a migration.
     image: timescale/timescaledb-ha:pg16
-    container_name: sslab-db
+    container_name: ssplat-db
     restart: unless-stopped
     environment:
       POSTGRES_DB: sslab
       POSTGRES_USER: sslab
-      # CHANGE THIS. Then put the same value in your .env file.
-      POSTGRES_PASSWORD: change_me_before_first_run
-      # Chinese Windows clients need this collation to sort 中文 correctly
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is not set in .env}
       POSTGRES_INITDB_ARGS: "--encoding=UTF8"
     ports:
-      # 5432 exposed on the LAN so your Mac and the Windows PCs can reach it.
-      # Bind to a specific interface in production rather than 0.0.0.0.
+      # Exposed on the LAN so your Mac and the Windows PCs can reach it.
+      # In production, bind to a specific interface instead of 0.0.0.0.
       - "5432:5432"
     volumes:
       - pgdata:/home/postgres/pgdata/data
-      # Anything in this folder runs ONCE, on first startup only.
-      # After the volume exists it is ignored — use Alembic for changes.
+      # Scripts here run ONCE, on first startup only. After the volume
+      # exists they are ignored — use Alembic for later changes.
       - ./db/migrations:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U sslab -d sslab"]
@@ -44,7 +46,7 @@ services:
 
   metabase:
     image: metabase/metabase:latest
-    container_name: sslab-metabase
+    container_name: ssplat-metabase
     restart: unless-stopped
     depends_on:
       db:
@@ -52,14 +54,14 @@ services:
     ports:
       - "3000:3000"
     environment:
-      # Metabase stores its OWN config (dashboards, users) in Postgres too,
-      # in a separate database. Never let it use the default H2 file store —
-      # H2 corrupts and you lose every dashboard you ever built.
+      # Metabase stores its OWN config (dashboards, users) in Postgres,
+      # in a separate database. Never let it use the default H2 file
+      # store — H2 corrupts and you lose every dashboard you built.
       MB_DB_TYPE: postgres
       MB_DB_DBNAME: metabase
       MB_DB_PORT: 5432
       MB_DB_USER: sslab
-      MB_DB_PASS: change_me_before_first_run
+      MB_DB_PASS: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is not set in .env}
       MB_DB_HOST: db
       JAVA_TIMEZONE: Asia/Shanghai
     volumes:

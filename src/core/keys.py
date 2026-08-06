@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Mapping
 
-from labcore.methods import derive_method_code
+from core.methods import derive_method_code
 
 
 def _clean(value: object) -> str:

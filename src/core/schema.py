@@ -1,4 +1,4 @@
-# src/labcore/schema.py
+# src/core/schema.py
 from __future__ import annotations
 
 import hashlib

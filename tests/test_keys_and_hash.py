@@ -1,6 +1,6 @@
-from labcore.keys import build_unique_key
-from labcore.hashers import build_record_hash
-from labcore.schema import MDR_SOURCE_COLUMNS
+from core.keys import build_unique_key
+from core.hashers import build_record_hash
+from core.schema import MDR_SOURCE_COLUMNS
 
 
 def test_unique_key_stable_when_results_change():

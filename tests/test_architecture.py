@@ -7,14 +7,14 @@ fails CI instead of being discovered eighteen months later.
 
 THE RULE — dependencies point in ONE direction only:
 
-    labcore/    ->  (nothing)          domain rules, the stable core
-    adapters/   ->  labcore            source format -> canonical schema
-    ingest/     ->  labcore, adapters  orchestration
-    labtool/    ->  labcore            existing lab pipeline
-    labgateway/ ->  labcore            alerting / publishing
+    core/    ->  (nothing)          domain rules, the stable core
+    adapters/   ->  core            source format -> canonical schema
+    ingest/     ->  core, adapters  orchestration
+    labtool/    ->  core            existing lab pipeline
+    gateway/ ->  core            alerting / publishing
 
 FORBIDDEN, and why:
-    labcore  -> adapters   the core would depend on a data source.
+    core  -> adapters   the core would depend on a data source.
                            Change the Excel layout, break the domain rules.
     adapters -> adapters   two sources coupled. Delete the Korean plant,
                            break the Chinese one.
@@ -31,11 +31,11 @@ SRC = pathlib.Path(__file__).resolve().parent.parent / "src"
 
 # layer -> layers it is allowed to import from
 ALLOWED: dict[str, set[str]] = {
-    "labcore":    set(),
-    "adapters":   {"labcore"},
-    "ingest":     {"labcore", "adapters"},
-    "labtool":    {"labcore"},
-    "labgateway": {"labcore"},
+    "core":    set(),
+    "adapters":   {"core"},
+    "ingest":     {"core", "adapters"},
+    "labtool":    {"core"},
+    "gateway": {"core"},
 }
 
 FIRST_PARTY = set(ALLOWED)
@@ -91,7 +91,7 @@ def test_layer_dependencies(layer: str) -> None:
     assert not violations, (
         f"\nDependency direction violated in '{layer}':\n"
         + "\n".join(violations)
-        + "\n\nFix by moving the shared logic into labcore/, not by "
+        + "\n\nFix by moving the shared logic into core/, not by "
           "adding an exception here."
     )
 
@@ -102,7 +102,7 @@ def test_adapters_are_mutually_independent() -> None:
 
     Two sources that share code have coupled release cycles: a change to
     the Chinese Excel adapter can then break the Korean CSV adapter.
-    Shared logic belongs in labcore/.
+    Shared logic belongs in core/.
     """
     adapters_dir = SRC / "adapters"
     if not adapters_dir.is_dir():
@@ -128,16 +128,16 @@ def test_adapters_are_mutually_independent() -> None:
     assert not violations, (
         "\nAdapters must not import each other:\n"
         + "\n".join(violations)
-        + "\n\nMove the shared logic into labcore/ or adapters/base.py."
+        + "\n\nMove the shared logic into core/ or adapters/base.py."
     )
 
 
-def test_labcore_has_no_io_dependencies() -> None:
+def test_core_has_no_io_dependencies() -> None:
     """
-    labcore/ is pure domain logic. It must not import database drivers,
+    core/ is pure domain logic. It must not import database drivers,
     HTTP clients, or file-format readers.
 
-    If labcore needs psycopg to work, it is no longer reusable and no
+    If core needs psycopg to work, it is no longer reusable and no
     longer unit-testable without a live database.
     """
     FORBIDDEN = {
@@ -146,11 +146,11 @@ def test_labcore_has_no_io_dependencies() -> None:
         "openpyxl", "pandas",
     }
 
-    if not (SRC / "labcore").is_dir():
-        pytest.skip("labcore/ does not exist yet")
+    if not (SRC / "core").is_dir():
+        pytest.skip("core/ does not exist yet")
 
     violations: list[str] = []
-    for path in _python_files("labcore"):
+    for path in _python_files("core"):
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         for node in ast.walk(tree):
             roots: list[str] = []
@@ -165,7 +165,7 @@ def test_labcore_has_no_io_dependencies() -> None:
                     )
 
     assert not violations, (
-        "\nlabcore/ must stay free of I/O dependencies:\n"
+        "\ncore/ must stay free of I/O dependencies:\n"
         + "\n".join(violations)
         + "\n\nI/O belongs in adapters/ or ingest/."
     )

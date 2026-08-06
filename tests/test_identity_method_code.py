@@ -1,5 +1,5 @@
-from labcore.methods import derive_method_code
-from labcore.keys import build_unique_key
+from core.methods import derive_method_code
+from core.keys import build_unique_key
 
 
 def test_cn_mooney_terms():

@@ -19,6 +19,21 @@ def test_unique_key_stable_when_results_change():
     assert build_unique_key(row1, source_id) == build_unique_key(row2, source_id)
 
 
+def test_corrected_test_date_keeps_same_key():
+    # A corrected TestDate typo must register as a CORRECTION of the
+    # existing record, not as a brand-new record.
+    source_id = "MDR_PC_01"
+    row1 = {
+        "MethodName": "195℃测试15分钟",
+        "ID": "101",
+        "TestDate": "2026/1/1",
+        "TestTime": "09:30",
+    }
+    row2 = {**row1, "TestDate": "2026/1/2"}
+
+    assert build_unique_key(row1, source_id) == build_unique_key(row2, source_id)
+
+
 def test_record_hash_changes_when_any_included_field_changes():
     row1 = {"ML": "5.596", "MH": "16.477"}
     row2 = {"ML": "5.700", "MH": "16.477"}

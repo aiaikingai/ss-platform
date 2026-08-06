@@ -20,4 +20,4 @@ def test_unique_key_locked_format():
         "TestDate": "2026/1/1 0:00",
         "TestTime": "01:42:12",
     }
-    assert build_unique_key(row, "MDR_PC_A") == "MDR_PC_A:MDR-195-15:17:2026-01-01T01:42:12"
+    assert build_unique_key(row, "MDR_PC_A") == "MDR_PC_A:MDR-195-15:17"

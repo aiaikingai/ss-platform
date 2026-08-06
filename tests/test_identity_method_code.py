@@ -1,5 +1,4 @@
-from core.methods import derive_method_code
-from core.keys import build_unique_key
+from domains.lab import build_unique_key, derive_method_code
 
 
 def test_cn_mooney_terms():

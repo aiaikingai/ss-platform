@@ -7,11 +7,12 @@ fails CI instead of being discovered eighteen months later.
 
 THE RULE — dependencies point in ONE direction only:
 
-    core/    ->  (nothing)          domain rules, the stable core
-    adapters/   ->  core            source format -> canonical schema
-    ingest/     ->  core, adapters  orchestration
-    labtool/    ->  core            existing lab pipeline
-    gateway/ ->  core            alerting / publishing
+    core/       ->  (nothing)                domain-agnostic primitives
+    domains/    ->  core                     per-domain identity rules
+    adapters/   ->  core, domains            source format -> canonical schema
+    ingest/     ->  core, domains, adapters  orchestration
+    labtool/    ->  core, domains            existing lab pipeline
+    gateway/    ->  core                     alerting / publishing
 
 FORBIDDEN, and why:
     core  -> adapters   the core would depend on a data source.
@@ -31,11 +32,12 @@ SRC = pathlib.Path(__file__).resolve().parent.parent / "src"
 
 # layer -> layers it is allowed to import from
 ALLOWED: dict[str, set[str]] = {
-    "core":    set(),
-    "adapters":   {"core"},
-    "ingest":     {"core", "adapters"},
-    "labtool":    {"core"},
-    "gateway": {"core"},
+    "core":     set(),
+    "domains":  {"core"},
+    "adapters": {"core", "domains"},
+    "ingest":   {"core", "domains", "adapters"},
+    "labtool":  {"core", "domains"},
+    "gateway":  {"core"},
 }
 
 FIRST_PARTY = set(ALLOWED)

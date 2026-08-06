@@ -1,4 +1,4 @@
-from core.keys import build_unique_key
+from domains.lab import build_unique_key
 from core.hashers import build_record_hash
 from core.schema import MDR_SOURCE_COLUMNS
 

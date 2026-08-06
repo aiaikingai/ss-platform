@@ -48,3 +48,5 @@ __MACOSX/
 # =========================
 .vscode/
 .idea/
+test_bitable_insert.py
+test_feishu_token.py
